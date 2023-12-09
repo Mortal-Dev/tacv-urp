@@ -14,24 +14,25 @@ public partial class VehicleInitializeSystem : SystemBase
 
         foreach (var (_, _, entity) in SystemAPI.Query<RefRW<UninitializedVehicleComponent>, RefRW<LocalTransform>>().WithEntityAccess())
         {
-            List<Entity> vehicleWheels = GetChildrenEntitiesWithComponent<WheelComponent>(entity);
-            List<Entity> vehicleSeats = GetChildrenEntitiesWithComponent<VehicleSeatComponent>(entity);
-
-            SeatMapComponent seatMapComponent = SetSeats(vehicleSeats);
+            VehicleComponent vehicleComponent = new()
+            {
+                seats = GetChildrenEntitiesWithComponent<VehicleSeatComponent>(entity),
+                wheels = GetChildrenEntitiesWithComponent<WheelComponent>(entity)
+            };
 
             entityCommandBuffer.RemoveComponent<UninitializedVehicleComponent>(entity);
-            entityCommandBuffer.AddComponent(entity, seatMapComponent);
+            entityCommandBuffer.AddComponent(entity, vehicleComponent);
         }
 
         entityCommandBuffer.Playback(EntityManager);
         entityCommandBuffer.Dispose();
     }
 
-    private List<Entity> GetChildrenEntitiesWithComponent<T>(Entity rootEntity) where T : unmanaged, IComponentData
+    private FixedList128Bytes<Entity> GetChildrenEntitiesWithComponent<T>(Entity rootEntity) where T : unmanaged, IComponentData
     {
         DynamicBuffer<LinkedEntityGroup> childBuffer = EntityManager.GetBuffer<LinkedEntityGroup>(rootEntity);
 
-        List<Entity> entitiesWithComponent = new();
+        FixedList128Bytes<Entity> entitiesWithComponent = new();
 
         foreach (LinkedEntityGroup linkedEntityGroup in childBuffer)
         {
@@ -41,28 +42,5 @@ public partial class VehicleInitializeSystem : SystemBase
         }
 
         return entitiesWithComponent;
-    }
-
-    private List<Entity> GetChildrenEntitiesWithComponentAndId<T>(Entity rootEntity) where T : unmanaged, ComponentId, IComponentData
-    {
-        List<Entity> entitiesWithComponent = GetChildrenEntitiesWithComponent<T>(rootEntity);
-
-        entitiesWithComponent.OrderBy(entity => EntityManager.GetComponentData<T>(entity).Id);
-
-        return entitiesWithComponent;
-    }
-
-    private SeatMapComponent SetSeats(List<Entity> seats)
-    {
-        SeatMapComponent seatMapComponent = new();
-
-        seats.OrderBy(entity => EntityManager.GetComponentData<VehicleSeatComponent>(entity).seatPosition);
-
-        foreach (Entity entity in seats)
-        {
-            seatMapComponent.seats.Add(entity);
-        }
-
-        return seatMapComponent;
     }
 }
