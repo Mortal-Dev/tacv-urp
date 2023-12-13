@@ -8,16 +8,12 @@ using Unity.Collections;
 
 [UpdateInGroup(typeof(FixedStepSimulationSystemGroup))]
 [UpdateAfter(typeof(FixedWingInitializeSystem))]
-//[BurstCompile]
+[BurstCompile]
 public partial struct CenterOfGravityUpdateSystem : ISystem
 {
-
-    //[BurstCompile]
+    [BurstCompile]
     public void OnUpdate(ref SystemState systemState)
     {
-        Debug.Log(ComponentType.ReadWrite<UninitializedFixedWingComponent>().GetManagedType());
-        Debug.Log(typeof(UninitializedFixedWingComponent));
-
         EntityCommandBuffer entityCommandBuffer = new(Allocator.Temp);
 
         foreach (var (parent, localTransform) in SystemAPI.Query<RefRO<Parent>, RefRO<LocalTransform>>().WithAll<CenterOfGravityComponent>())
@@ -28,8 +24,8 @@ public partial struct CenterOfGravityUpdateSystem : ISystem
 
             PhysicsVelocity physicsVelocity = SystemAPI.GetComponent<PhysicsVelocity>(parent.ValueRO.Value);
 
-            physicsVelocity.Angular.y = 0;
-            physicsVelocity.Angular.z = 0;
+           // physicsVelocity.Angular.y = 0;
+           // physicsVelocity.Angular.z = 0;
 
             entityCommandBuffer.SetComponent(parent.ValueRO.Value, physicsMass);
             entityCommandBuffer.SetComponent(parent.ValueRO.Value, physicsVelocity);

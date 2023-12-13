@@ -20,8 +20,9 @@ public partial class VehicleInitializeSystem : SystemBase
                 wheels = GetChildrenEntitiesWithComponent<WheelComponent>(entity)
             };
 
-            entityCommandBuffer.RemoveComponent<UninitializedVehicleComponent>(entity);
             entityCommandBuffer.AddComponent(entity, vehicleComponent);
+
+            entityCommandBuffer.RemoveComponent<UninitializedVehicleComponent>(entity);
         }
 
         entityCommandBuffer.Playback(EntityManager);

@@ -26,7 +26,7 @@ public partial struct FixedWingEngineSystem : ISystem
 
         engineComponentLookup = systemState.GetComponentLookup<EngineComponent>();
 
-        localTransformLookup = systemState.GetComponentLookup<LocalTransform>();
+        localTransformLookup = systemState.GetComponentLookup<LocalTransform>(true);
     }
 
     [BurstCompile]
@@ -37,7 +37,7 @@ public partial struct FixedWingEngineSystem : ISystem
         engineComponentLookup.Update(ref systemState);
         localTransformLookup.Update(ref systemState);
 
-        EntityCommandBuffer entityCommandBuffer = new EntityCommandBuffer(Allocator.TempJob);
+        EntityCommandBuffer entityCommandBuffer = new(Allocator.TempJob);
 
         EntityCommandBuffer.ParallelWriter parallelWriterEntityCommandBuffer = entityCommandBuffer.AsParallelWriter();
 

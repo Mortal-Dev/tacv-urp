@@ -2,6 +2,7 @@
 using Unity.Collections;
 using System.Linq;
 using Unity.Mathematics;
+using Unity.Transforms;
 
 [UpdateInGroup(typeof(FixedStepSimulationSystemGroup))]
 [UpdateBefore(typeof(FixedWingStateSystem))]
@@ -34,7 +35,7 @@ public partial class FixedWingInitializeSystem : SystemBase
         {
             if (!SystemAPI.HasComponent<WeightComponent>(child.Value)) continue;
 
-           // LocalTransform localTransform = 
+            LocalTransform localTransform = SystemAPI.GetComponent<LocalTransform>(child.Value);
         }
     }
 
