@@ -4,6 +4,7 @@ using System.Linq;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Transforms;
+using Unity.Physics;
 
 [UpdateInGroup(typeof(FixedStepSimulationSystemGroup))]
 public partial class VehicleInitializeSystem : SystemBase
@@ -14,6 +15,8 @@ public partial class VehicleInitializeSystem : SystemBase
 
         foreach (var (_, _, entity) in SystemAPI.Query<RefRW<UninitializedVehicleComponent>, RefRW<LocalTransform>>().WithEntityAccess())
         {
+            DynamicBuffer<PhysicsColliderKeyEntityPair> physicsColliderKeyEntityPairs = SystemAPI.GetBuffer<PhysicsColliderKeyEntityPair>(entity);
+
             VehicleComponent vehicleComponent = new()
             {
                 seats = GetChildrenEntitiesWithComponent<VehicleSeatComponent>(entity),
