@@ -4,18 +4,23 @@ using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Physics;
 using Unity.Physics.Extensions;
+using Unity.Physics.GraphicsIntegration;
 using Unity.Physics.Systems;
 using Unity.Transforms;
 using UnityEngine;
 
-[BurstCompile]
-[UpdateAfter(typeof(VehicleInitializeSystem))]
-[UpdateInGroup(typeof(FixedStepSimulationSystemGroup))]
+[UpdateInGroup(typeof(PhysicsSystemGroup))]
 public partial struct WheelFrictionSystem : ISystem
 {
     private ComponentLookup<VehicleComponent> vehicleComponentLookup;
 
     private ComponentLookup<PhysicsCollider> physicsColliderComponentLookup;
+
+    private ComponentLookup<PhysicsMass> physicsMassComponentLookup;
+
+    private ComponentLookup<PhysicsVelocity> physicsVelocityComponentLookup;
+
+    private ComponentLookup<LocalTransform> localTransformComponentLookup;
 
     private ComponentLookup<WheelComponent> wheelComponentLookup;
 
@@ -25,62 +30,38 @@ public partial struct WheelFrictionSystem : ISystem
     {
         vehicleComponentLookup = systemState.GetComponentLookup<VehicleComponent>(true);
         physicsColliderComponentLookup = systemState.GetComponentLookup<PhysicsCollider>(true);
-        wheelComponentLookup = systemState.GetComponentLookup<WheelComponent>(true);
+        physicsMassComponentLookup = systemState.GetComponentLookup<PhysicsMass>(true);
+        physicsVelocityComponentLookup = systemState.GetComponentLookup<PhysicsVelocity>();
+        localTransformComponentLookup = systemState.GetComponentLookup<LocalTransform>(true);
+        wheelComponentLookup = systemState.GetComponentLookup<WheelComponent>();
         physicsColliderKeyEntityPairBufferLookup = systemState.GetBufferLookup<PhysicsColliderKeyEntityPair>(true);
     }
 
     public void OnUpdate(ref SystemState systemState)
     {
-        if (SystemAPI.TryGetSingleton(out SimulationSingleton simulationSingleton))
+        if (!SystemAPI.TryGetSingleton(out SimulationSingleton simulationSingleton)) return;
+
+        vehicleComponentLookup.Update(ref systemState);
+        physicsColliderComponentLookup.Update(ref systemState);
+        physicsMassComponentLookup.Update(ref systemState);
+        physicsVelocityComponentLookup.Update(ref systemState);
+        localTransformComponentLookup.Update(ref systemState);
+        wheelComponentLookup.Update(ref systemState);
+        physicsColliderKeyEntityPairBufferLookup.Update(ref systemState);
+
+        WheelCollisionJob wheelCollisionJob = new()
         {
-            vehicleComponentLookup.Update(ref systemState);
-            physicsColliderComponentLookup.Update(ref systemState);
-            wheelComponentLookup.Update(ref systemState);
-            physicsColliderKeyEntityPairBufferLookup.Update(ref systemState);
+            vehicleComponentLookup = vehicleComponentLookup,
+            physicsColliderLookup = physicsColliderComponentLookup,
+            physicsMassComponentLookup = physicsMassComponentLookup,
+            physicsVelocityComponentLookup = physicsVelocityComponentLookup,
+            localTransformComponentLookup = localTransformComponentLookup,
+            wheelComponentLookup = wheelComponentLookup,
+            physicsColliderKeyEntityPairs = physicsColliderKeyEntityPairBufferLookup,
+            deltaTime = SystemAPI.Time.DeltaTime
+        };
 
-            new WheelCollisionJob()
-            {
-                vehicleComponentLookup = vehicleComponentLookup,
-                physicsColliderLookup = physicsColliderComponentLookup,
-                wheelComponentLookup = wheelComponentLookup,
-                physicsColliderKeyEntityPairs = physicsColliderKeyEntityPairBufferLookup
-
-            }.Schedule(simulationSingleton, simulationSingleton.AsSimulation().FinalJobHandle).Complete();
-        }
-
-        return;
-
-        foreach (var (vehicleComponent, vehicleEntity) in SystemAPI.Query<RefRO<VehicleComponent>>().WithEntityAccess())
-        {
-            var colliderBuffer = SystemAPI.GetBuffer<PhysicsColliderKeyEntityPair>(vehicleEntity);
-
-
-
-            UpdateVehicleWheelsFriction(vehicleEntity, vehicleComponent, ref systemState);
-        }
-    }
-
-    private void UpdateVehicleWheelsFriction(Entity vehicleEntity, RefRO<VehicleComponent> vehicleComponent, ref SystemState systemState)
-    {
-        //try getting collision keys from vehicle entity in initialization
-
-        RefRW<PhysicsVelocity> vehiclePhysicsVelocity = SystemAPI.GetComponentRW<PhysicsVelocity>(vehicleEntity);
-        LocalTransform vehicleLocalTransform = SystemAPI.GetComponent<LocalTransform>(vehicleEntity);
-        PhysicsMass vehiclePhysicsMass = SystemAPI.GetComponent<PhysicsMass>(vehicleEntity);
-
-        foreach (Entity wheelEntity in vehicleComponent.ValueRO.wheels)
-        {
-            LocalTransform wheelLocalTransform = SystemAPI.GetComponent<LocalTransform>(wheelEntity);
-            RefRW<WheelComponent> wheelComponent = SystemAPI.GetComponentRW<WheelComponent>(wheelEntity);
-
-            wheelComponent.ValueRW.rpm -= ((wheelComponent.ValueRO.rpm * math.PI) + -vehicleLocalTransform.InverseTransformDirection(vehiclePhysicsVelocity.ValueRO.Linear).z) * SystemAPI.Time.DeltaTime * 0.1f;
-
-            Vector3 tractionForce = Vector3.ClampMagnitude(wheelComponent.ValueRO.traction * (wheelLocalTransform.Right() *
-                -wheelLocalTransform.InverseTransformDirection(vehiclePhysicsVelocity.ValueRO.Linear).x + wheelLocalTransform.Forward() * ((wheelComponent.ValueRO.rpm * Mathf.PI) +
-                -wheelLocalTransform.InverseTransformDirection(vehiclePhysicsVelocity.ValueRO.Linear).z)), wheelComponent.ValueRO.maxTraction);
-
-            vehiclePhysicsVelocity.ValueRW.ApplyImpulse(in vehiclePhysicsMass, vehiclePhysicsMass.Transform.pos, vehiclePhysicsMass.Transform.rot, tractionForce * SystemAPI.Time.DeltaTime, wheelLocalTransform.Position);
-        }
+        wheelCollisionJob.Schedule(simulationSingleton, simulationSingleton.AsSimulation().FinalJobHandle).Complete();
     }
 
     struct WheelCollisionJob : ICollisionEventsJob
@@ -89,24 +70,31 @@ public partial struct WheelFrictionSystem : ISystem
 
         [ReadOnly] public ComponentLookup<PhysicsCollider> physicsColliderLookup;
 
-        [ReadOnly] public ComponentLookup<WheelComponent> wheelComponentLookup;
+        [ReadOnly] public ComponentLookup<PhysicsMass> physicsMassComponentLookup;
+
+        public ComponentLookup<PhysicsVelocity> physicsVelocityComponentLookup;
+
+        [ReadOnly] public ComponentLookup<LocalTransform> localTransformComponentLookup;
+
+        public ComponentLookup<WheelComponent> wheelComponentLookup;
 
         [ReadOnly] public BufferLookup<PhysicsColliderKeyEntityPair> physicsColliderKeyEntityPairs;
 
+        [ReadOnly] public float deltaTime;
+
         public void Execute(CollisionEvent collisionEvent)
         {
-
             Entity vehicleEntity = GetVehicleEntity(collisionEvent, out ColliderKey vehicleColliderKey);
 
             if (vehicleEntity == Entity.Null) return;
 
             if (!physicsColliderLookup.HasComponent(vehicleEntity)) return;
 
-            Debug.Log(vehicleColliderKey);
-
             Entity wheelEntity = GetWheelChildCollidedEntity(vehicleEntity, ref vehicleColliderKey);
 
             if (wheelEntity == Entity.Null) return;
+
+            UpdateVehicleWheelFriction(vehicleEntity, wheelEntity);
         }
 
         private Entity GetWheelChildCollidedEntity(Entity vehicleEntity, ref ColliderKey vehicleColliderKey)
@@ -136,6 +124,27 @@ public partial struct WheelFrictionSystem : ISystem
 
             vehicleColliderKey = ColliderKey.Empty;
             return Entity.Null;
+        }
+
+        private void UpdateVehicleWheelFriction(Entity vehicleEntity, Entity wheelEntity)
+        {
+            RefRW<PhysicsVelocity> vehiclePhysicsVelocity = physicsVelocityComponentLookup.GetRefRW(vehicleEntity);
+            RefRO<LocalTransform> vehicleLocalTransform = localTransformComponentLookup.GetRefRO(vehicleEntity);
+            RefRO<PhysicsMass> vehiclePhysicsMass = physicsMassComponentLookup.GetRefRO(vehicleEntity);
+
+            RefRO<LocalTransform> wheelLocalTransform = localTransformComponentLookup.GetRefRO(wheelEntity);
+            RefRW<WheelComponent> wheelComponent = wheelComponentLookup.GetRefRW(wheelEntity);
+
+            wheelComponent.ValueRW.rpm -= ((wheelComponent.ValueRO.rpm * math.PI) + -vehicleLocalTransform.ValueRO.InverseTransformDirection(vehiclePhysicsVelocity.ValueRO.Linear).z) *
+                deltaTime * 0.1f;
+
+            Vector3 tractionForce = Vector3.ClampMagnitude(wheelComponent.ValueRO.traction * (wheelLocalTransform.ValueRO.Right() *
+                -wheelLocalTransform.ValueRO.InverseTransformDirection(vehiclePhysicsVelocity.ValueRO.Linear).x + wheelLocalTransform.ValueRO.Forward() * ((wheelComponent.ValueRO.rpm *
+                Mathf.PI) +
+                -wheelLocalTransform.ValueRO.InverseTransformDirection(vehiclePhysicsVelocity.ValueRO.Linear).z)), wheelComponent.ValueRO.maxTraction);
+
+            vehiclePhysicsVelocity.ValueRW.ApplyImpulse(in vehiclePhysicsMass.ValueRO, vehiclePhysicsMass.ValueRO.Transform.pos, vehiclePhysicsMass.ValueRO.Transform.rot, tractionForce *
+                deltaTime, wheelLocalTransform.ValueRO.Position);
         }
     }
 }
