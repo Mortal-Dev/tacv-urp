@@ -4,10 +4,10 @@ using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Physics;
 using Unity.Physics.Extensions;
-using Unity.Physics.GraphicsIntegration;
 using Unity.Physics.Systems;
 using Unity.Transforms;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 [UpdateInGroup(typeof(PhysicsSystemGroup))]
 public partial struct WheelFrictionSystem : ISystem
@@ -103,7 +103,7 @@ public partial struct WheelFrictionSystem : ISystem
 
             foreach (PhysicsColliderKeyEntityPair physicsColliderKeyEntityPair in physicsColliderKeyEntityPairBuffer)
             {
-                if (physicsColliderKeyEntityPair.Key == vehicleColliderKey) return physicsColliderKeyEntityPair.Entity;
+                if (physicsColliderKeyEntityPair.Key == vehicleColliderKey && wheelComponentLookup.HasComponent(physicsColliderKeyEntityPair.Entity)) return physicsColliderKeyEntityPair.Entity;
             }
 
             return Entity.Null;
