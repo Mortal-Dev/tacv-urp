@@ -7,6 +7,7 @@ using Unity.Physics.Extensions;
 using Unity.Physics.Systems;
 using Unity.Transforms;
 using UnityEngine;
+using UnityEngine.SocialPlatforms;
 
 [UpdateInGroup(typeof(PhysicsSystemGroup))]
 public partial struct WheelFrictionSystem : ISystem
@@ -41,7 +42,7 @@ public partial struct WheelFrictionSystem : ISystem
 
     public void OnUpdate(ref SystemState systemState)
     {
-        if (!SystemAPI.TryGetSingleton(out SimulationSingleton simulationSingleton)) return;
+        if (!SystemAPI.TryGetSingleton(out SimulationSingleton simulationSingleton) || simulationSingleton.Type == SimulationType.NoPhysics) return;
 
         localOwnedNetworkedEntityComponentLookup.Update(ref systemState);
         vehicleComponentLookup.Update(ref systemState);
@@ -145,17 +146,22 @@ public partial struct WheelFrictionSystem : ISystem
 
             float metersPerMinuteVelocity = vehiclePhysicsVelocity.ValueRO.Linear.z * 60f;
 
-            float circumference = 0.288f * 2 * math.PI;
+            float circumference = wheelComponent.ValueRO.radius * 2 * math.PI;
 
             wheelComponent.ValueRW.rpm = metersPerMinuteVelocity / circumference;
 
-            Vector3 tractionForce = Vector3.ClampMagnitude(wheelComponent.ValueRO.traction * (wheelLocalTransform.ValueRO.Right() *
-                -wheelLocalTransform.ValueRO.InverseTransformDirection(vehiclePhysicsVelocity.ValueRO.Linear).x + wheelLocalTransform.ValueRO.Forward() * ((wheelComponent.ValueRO.rpm *
-                Mathf.PI) +
-                -wheelLocalTransform.ValueRO.InverseTransformDirection(vehiclePhysicsVelocity.ValueRO.Linear).z)), wheelComponent.ValueRO.maxTraction);
+            float3 localVelocity = vehicleLocalTransform.ValueRO.InverseTransformDirection(vehiclePhysicsVelocity.ValueRO.Linear);
 
-            vehiclePhysicsVelocity.ValueRW.ApplyImpulse(in vehiclePhysicsMass.ValueRO, vehiclePhysicsMass.ValueRO.Transform.pos, vehiclePhysicsMass.ValueRO.Transform.rot, tractionForce *
-                deltaTime, wheelLocalTransform.ValueRO.Position);
+            float3 wheelVelocity = wheelLocalTransform.ValueRO.InverseTransformDirection(localVelocity);
+            
+            float sideToFowardVelocityRatio = wheelVelocity.x / (wheelVelocity.x + wheelVelocity.z);
+
+            if (sideToFowardVelocityRatio <= 0.04) return;
+
+            float3 forceToStop = vehiclePhysicsMass.ValueRO.GetMass() * -vehiclePhysicsVelocity.ValueRO.Linear;
+
+            vehiclePhysicsVelocity.ValueRW.ApplyImpulse(in vehiclePhysicsMass.ValueRO, vehiclePhysicsMass.ValueRO.Transform.pos, vehiclePhysicsMass.ValueRO.Transform.rot, 
+                forceToStop * sideToFowardVelocityRatio, wheelLocalTransform.ValueRO.Position);
         }
     }
 }

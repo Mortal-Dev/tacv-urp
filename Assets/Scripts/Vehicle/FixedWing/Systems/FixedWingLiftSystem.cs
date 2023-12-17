@@ -28,6 +28,8 @@ public partial struct FixedWingLiftSystem : ISystem
     [BurstCompile]
     public void OnUpdate(ref SystemState systemState)
     {
+        return;
+
         localTransfromComponentLookup.Update(ref systemState);
         liftGeneratingSurfaceComponentLookup.Update(ref systemState);
 

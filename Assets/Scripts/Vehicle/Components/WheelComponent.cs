@@ -2,6 +2,8 @@
 
 public partial struct WheelComponent : IComponentData
 {
+    public float radius;
+
     public bool isTurnableWheel;
 
     public float maxTraction;
