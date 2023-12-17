@@ -50,49 +50,10 @@ public partial class SyncLocalPlayerToXROriginSystem : SystemBase
     {
         foreach (var (localToWorld, entity) in SystemAPI.Query<RefRW<LocalToWorld>>().WithAll<LocalOwnedNetworkedEntityComponent>().WithAll<PlayerComponent>().WithEntityAccess())
         {
-            LocalTransform globalTransform = ConvertLocalEntityToGlobal(localToWorld.ValueRO, entity);
+            LocalTransform globalTransform = localToWorld.ValueRO.ConvertLocalEntityTransformToGlobalTransform(entity, EntityManager);
 
-            XROriginGameObject.transform.position = globalTransform.Position;
-            XROriginGameObject.transform.rotation = globalTransform.Rotation;
+            XROriginGameObject.transform.SetPositionAndRotation(globalTransform.Position, globalTransform.Rotation);
         }
-    }
-
-    private LocalTransform ConvertLocalEntityToGlobal(LocalToWorld localToWorld, Entity rootEntity)
-    {
-        float3 newPosition = localToWorld.Position;
-        Quaternion newRotation = localToWorld.Rotation;
-
-        bool hasParent = SystemAPI.HasComponent<Parent>(rootEntity);
-
-        while (hasParent)
-        {
-            Entity parent = SystemAPI.GetComponent<Parent>(rootEntity).Value;
-
-            LocalToWorld childLocalToWorld = SystemAPI.GetComponent<LocalToWorld>(rootEntity);
-
-            LocalTransform childTransform = new() { Position = childLocalToWorld.Position, Rotation = childLocalToWorld.Rotation, Scale = 1 };
-
-            if (SystemAPI.HasComponent<Parent>(rootEntity))
-            {
-                Entity nextRootEntity = SystemAPI.GetComponent<Parent>(rootEntity).Value;
-
-                if (SystemAPI.HasComponent<Parent>(nextRootEntity))
-                {
-                    newPosition = childTransform.TransformPoint(float3.zero);
-
-                    break;
-                }
-            }
-
-            newPosition = childTransform.TransformPoint(float3.zero);
-            newRotation = childTransform.TransformRotation(quaternion.identity);
-
-            rootEntity = parent;
-
-            hasParent = SystemAPI.HasComponent<Parent>(rootEntity);
-        }
-
-        return new LocalTransform() { Position = newPosition, Rotation = newRotation, Scale = 1 };
     }
 
     private void SetXRGameObjects()

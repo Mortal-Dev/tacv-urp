@@ -46,7 +46,7 @@ public partial struct FixedWingDragSystem : ISystem
     {
         [ReadOnly] public float deltaTime;
 
-        public readonly void Execute(ref FixedWingDragComponent fixedWingDragComponent, ref FixedWingComponent fixedWingComponent, ref PhysicsVelocity physicsVelocity, in PhysicsMass physicsMass,
+        public readonly void Execute(ref FixedWingDragComponent fixedWingDragComponent, ref FixedWingComponent      fixedWingComponent, ref PhysicsVelocity physicsVelocity, in PhysicsMass physicsMass,
             in LocalTransform localTransform)
         {
             return;

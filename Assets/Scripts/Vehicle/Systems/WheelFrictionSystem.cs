@@ -7,11 +7,12 @@ using Unity.Physics.Extensions;
 using Unity.Physics.Systems;
 using Unity.Transforms;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 [UpdateInGroup(typeof(PhysicsSystemGroup))]
 public partial struct WheelFrictionSystem : ISystem
 {
+    private ComponentLookup<LocalOwnedNetworkedEntityComponent> localOwnedNetworkedEntityComponentLookup;
+
     private ComponentLookup<VehicleComponent> vehicleComponentLookup;
 
     private ComponentLookup<PhysicsCollider> physicsColliderComponentLookup;
@@ -28,6 +29,7 @@ public partial struct WheelFrictionSystem : ISystem
 
     public void OnCreate(ref SystemState systemState)
     {
+        localOwnedNetworkedEntityComponentLookup = systemState.GetComponentLookup<LocalOwnedNetworkedEntityComponent>(true);
         vehicleComponentLookup = systemState.GetComponentLookup<VehicleComponent>(true);
         physicsColliderComponentLookup = systemState.GetComponentLookup<PhysicsCollider>(true);
         physicsMassComponentLookup = systemState.GetComponentLookup<PhysicsMass>(true);
@@ -41,6 +43,7 @@ public partial struct WheelFrictionSystem : ISystem
     {
         if (!SystemAPI.TryGetSingleton(out SimulationSingleton simulationSingleton)) return;
 
+        localOwnedNetworkedEntityComponentLookup.Update(ref systemState);
         vehicleComponentLookup.Update(ref systemState);
         physicsColliderComponentLookup.Update(ref systemState);
         physicsMassComponentLookup.Update(ref systemState);
@@ -51,6 +54,7 @@ public partial struct WheelFrictionSystem : ISystem
 
         WheelCollisionJob wheelCollisionJob = new()
         {
+            localOwnedNetworkedEntityComponentLookup = localOwnedNetworkedEntityComponentLookup,
             vehicleComponentLookup = vehicleComponentLookup,
             physicsColliderLookup = physicsColliderComponentLookup,
             physicsMassComponentLookup = physicsMassComponentLookup,
@@ -66,6 +70,8 @@ public partial struct WheelFrictionSystem : ISystem
 
     struct WheelCollisionJob : ICollisionEventsJob
     {
+        [ReadOnly] public ComponentLookup<LocalOwnedNetworkedEntityComponent> localOwnedNetworkedEntityComponentLookup;
+
         [ReadOnly] public ComponentLookup<VehicleComponent> vehicleComponentLookup;
 
         [ReadOnly] public ComponentLookup<PhysicsCollider> physicsColliderLookup;
@@ -87,6 +93,8 @@ public partial struct WheelFrictionSystem : ISystem
             Entity vehicleEntity = GetVehicleEntity(collisionEvent, out ColliderKey vehicleColliderKey);
 
             if (vehicleEntity == Entity.Null) return;
+
+            if (!localOwnedNetworkedEntityComponentLookup.HasComponent(vehicleEntity)) return;
 
             if (!physicsColliderLookup.HasComponent(vehicleEntity)) return;
 
@@ -135,8 +143,11 @@ public partial struct WheelFrictionSystem : ISystem
             RefRO<LocalTransform> wheelLocalTransform = localTransformComponentLookup.GetRefRO(wheelEntity);
             RefRW<WheelComponent> wheelComponent = wheelComponentLookup.GetRefRW(wheelEntity);
 
-            wheelComponent.ValueRW.rpm -= ((wheelComponent.ValueRO.rpm * math.PI) + -vehicleLocalTransform.ValueRO.InverseTransformDirection(vehiclePhysicsVelocity.ValueRO.Linear).z) *
-                deltaTime * 0.1f;
+            float metersPerMinuteVelocity = vehiclePhysicsVelocity.ValueRO.Linear.z * 60f;
+
+            float circumference = 0.288f * 2 * math.PI;
+
+            wheelComponent.ValueRW.rpm = metersPerMinuteVelocity / circumference;
 
             Vector3 tractionForce = Vector3.ClampMagnitude(wheelComponent.ValueRO.traction * (wheelLocalTransform.ValueRO.Right() *
                 -wheelLocalTransform.ValueRO.InverseTransformDirection(vehiclePhysicsVelocity.ValueRO.Linear).x + wheelLocalTransform.ValueRO.Forward() * ((wheelComponent.ValueRO.rpm *
