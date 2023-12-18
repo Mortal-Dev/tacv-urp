@@ -64,11 +64,9 @@ public partial struct FixedWingStateSystem : ISystem
             fixedWingComponent.ValueRW.angleOfAttackYaw = 0;
             return;
         }
-
+  
         fixedWingComponent.ValueRW.angleOfAttack =  math.degrees(math.atan2(-fixedWingComponent.ValueRO.localVelocity.y, fixedWingComponent.ValueRO.localVelocity.z));
         fixedWingComponent.ValueRW.angleOfAttackYaw = math.degrees(math.atan2(fixedWingComponent.ValueRO.localVelocity.x, fixedWingComponent.ValueRO.localVelocity.z));
-
-        //Debug.Log("angel of attack: " + fixedWingComponent.ValueRW.angleOfAttack);
     }
 
     private void SetGForce(RefRW<FixedWingComponent> fixedWingComponent, RefRW<PhysicsVelocity> physicsVelocity)

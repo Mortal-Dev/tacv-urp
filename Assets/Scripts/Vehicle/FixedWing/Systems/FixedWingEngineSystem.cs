@@ -13,11 +13,15 @@ using UnityEngine;
 [BurstCompile]
 public partial struct FixedWingEngineSystem : ISystem
 {
-    EntityQuery networkEntityQuery;
+    private EntityQuery networkEntityQuery;
 
-    ComponentLookup<EngineComponent> engineComponentLookup;
+    private ComponentLookup<EngineComponent> engineComponentLookup;
 
-    ComponentLookup<LocalTransform> localTransformLookup;
+    private ComponentLookup<LocalTransform> localTransformLookup;
+
+    private ComponentLookup<LocalToWorld> localToWorldLookup;
+
+    private ComponentLookup<Parent> parentLookup;
 
     public void OnCreate(ref SystemState systemState)
     {
@@ -27,6 +31,10 @@ public partial struct FixedWingEngineSystem : ISystem
         engineComponentLookup = systemState.GetComponentLookup<EngineComponent>();
 
         localTransformLookup = systemState.GetComponentLookup<LocalTransform>(true);
+
+        localToWorldLookup = systemState.GetComponentLookup<LocalToWorld>(true);
+
+        parentLookup = systemState.GetComponentLookup<Parent>(true);
     }
 
     [BurstCompile]
@@ -36,13 +44,22 @@ public partial struct FixedWingEngineSystem : ISystem
 
         engineComponentLookup.Update(ref systemState);
         localTransformLookup.Update(ref systemState);
+        localToWorldLookup.Update(ref systemState);
+        parentLookup.Update(ref systemState);
 
         EntityCommandBuffer entityCommandBuffer = new(Allocator.TempJob);
 
         EntityCommandBuffer.ParallelWriter parallelWriterEntityCommandBuffer = entityCommandBuffer.AsParallelWriter();
 
-        FixedWingEngineJob fixedWingEnginePowerJob = new() { deltaTime = SystemAPI.Time.DeltaTime, engineComponentLookup = engineComponentLookup, localTransformLookup = localTransformLookup,
-            parallelWriterEntityCommandBuffer = parallelWriterEntityCommandBuffer };
+        FixedWingEngineJob fixedWingEnginePowerJob = new() 
+        { 
+            deltaTime = SystemAPI.Time.DeltaTime, 
+            engineComponentLookup = engineComponentLookup, 
+            localTransformLookup = localTransformLookup,
+            localToWorldLookup = localToWorldLookup,
+            parentLookup = parentLookup,
+            parallelWriterEntityCommandBuffer = parallelWriterEntityCommandBuffer 
+        };
 
         if (networkManagerEntityComponent.NetworkType == NetworkType.None)
         {
@@ -69,6 +86,10 @@ public partial struct FixedWingEngineSystem : ISystem
         [ReadOnly] 
         public ComponentLookup<LocalTransform> localTransformLookup;
 
+        [ReadOnly] public ComponentLookup<LocalToWorld> localToWorldLookup;
+
+        [ReadOnly] public ComponentLookup<Parent> parentLookup;
+
         public EntityCommandBuffer.ParallelWriter parallelWriterEntityCommandBuffer;
 
         public void Execute([ChunkIndexInQuery] int sortKey, ref FixedWingComponent fixedWingComponent, ref PhysicsMass physicsMass, ref PhysicsVelocity physicsVelocity, in FixedWingInputComponent fixedWingInputComponent, in LocalTransform localTransform)
@@ -83,8 +104,12 @@ public partial struct FixedWingEngineSystem : ISystem
 
                 parallelWriterEntityCommandBuffer.SetComponent(sortKey, engineEntity, engineComponent);
 
-                physicsVelocity.ApplyImpulse(physicsMass, physicsMass.Transform.pos, physicsMass.Transform.rot, engineLocalTransform.TransformTransform(localTransform).Forward() * 
-                    engineComponent.currentPower * deltaTime, engineLocalTransform.Position);
+                physicsVelocity.ApplyImpulse(physicsMass, physicsMass.Transform.pos, physicsMass.Transform.rot, 
+                    engineLocalTransform.GetGlobalTransform(engineEntity, localTransformLookup, localToWorldLookup, parentLookup).Forward() * engineComponent.currentPower * deltaTime, 
+                    engineLocalTransform.Position);
+
+                /*physicsVelocity.ApplyImpulse(physicsMass, physicsMass.Transform.pos, physicsMass.Transform.rot, engineLocalTransform.TransformTransform(localTransform).Forward() * 
+                    engineComponent.currentPower * deltaTime, engineLocalTransform.Position);*/
             }
         }
     }
