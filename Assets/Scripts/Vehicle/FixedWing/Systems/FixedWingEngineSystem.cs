@@ -105,7 +105,7 @@ public partial struct FixedWingEngineSystem : ISystem
                 parallelWriterEntityCommandBuffer.SetComponent(sortKey, engineEntity, engineComponent);
 
                 physicsVelocity.ApplyImpulse(physicsMass, physicsMass.Transform.pos, physicsMass.Transform.rot, 
-                    engineLocalTransform.GetGlobalTransform(engineEntity, localTransformLookup, localToWorldLookup, parentLookup).Forward() * engineComponent.currentPower * deltaTime, 
+                    engineLocalTransform.GetGlobalTransform(engineEntity, localTransformLookup, localToWorldLookup, parentLookup).Forward() * engineComponent.currentPower / 10 * deltaTime, 
                     engineLocalTransform.Position);
 
                 /*physicsVelocity.ApplyImpulse(physicsMass, physicsMass.Transform.pos, physicsMass.Transform.rot, engineLocalTransform.TransformTransform(localTransform).Forward() * 

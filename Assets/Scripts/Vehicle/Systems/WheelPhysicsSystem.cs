@@ -160,18 +160,28 @@ public partial struct WheelPhysicsSystem : ISystem
         private void UpdateVehicleWheelFriction(RefRW<PhysicsVelocity> vehiclePhysicsVelocity, RefRO<LocalTransform> vehicleLocalTransform, RefRO<PhysicsMass> vehiclePhysicsMass, 
             RefRO<LocalTransform> wheelLocalTransform, RefRW<WheelComponent> wheelComponent, float3 wheelVelocity)
         {
-            float sideToFowardVelocityRatio = wheelVelocity.x / (wheelVelocity.x + wheelVelocity.z);
+            float sideToFowardVelocityRatio = math.abs(wheelVelocity.x) / (math.abs(wheelVelocity.x) + math.abs(wheelVelocity.z));
 
             if (sideToFowardVelocityRatio <= 0.04) return;
 
-            wheelVelocity.x = vehiclePhysicsMass.ValueRO.GetMass() * -wheelVelocity.x * wheelComponent.ValueRO.traction;
+            float maxFrictionCurve = 1.0f;
+            float minFrictionCurve = 0.2f;
+
+            float multiplier = math.lerp(maxFrictionCurve, minFrictionCurve, sideToFowardVelocityRatio);
+
+            Debug.Log("wheel velocity: " + wheelVelocity.x);
+
+            wheelVelocity.x = vehiclePhysicsMass.ValueRO.GetMass() * -wheelVelocity.x * multiplier;
             wheelVelocity.z = 0;
             wheelVelocity.y = 0;
 
-            float3 wheelFrictionForce = vehicleLocalTransform.ValueRO.TransformDirection(wheelLocalTransform.ValueRO.TransformDirection(wheelVelocity));
+            Debug.Log("ratio: " + sideToFowardVelocityRatio);
+            Debug.Log("force: " + wheelVelocity.x * sideToFowardVelocityRatio);
+
+            vehiclePhysicsVelocity.ValueRW.Linear = Vector3.ClampMagnitude(vehiclePhysicsVelocity.ValueRO.Linear, 10f);
 
             vehiclePhysicsVelocity.ValueRW.ApplyImpulse(in vehiclePhysicsMass.ValueRO, vehiclePhysicsMass.ValueRO.Transform.pos, vehiclePhysicsMass.ValueRO.Transform.rot,
-                wheelFrictionForce * sideToFowardVelocityRatio, wheelLocalTransform.ValueRO.Position);
+                wheelVelocity * sideToFowardVelocityRatio, wheelLocalTransform.ValueRO.Position);
         }
 
         private void UpdateVehicleWheelRPM(float3 wheelVelocity, RefRW<WheelComponent> wheelComponent)
