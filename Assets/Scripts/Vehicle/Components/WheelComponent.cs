@@ -4,9 +4,9 @@ public partial struct WheelComponent : IComponentData
 {
     public float radius;
 
-    public bool isTurnableWheel;
+    public float wheelWeight;
 
-    public float traction;
+    public LowFidelityFixedAnimationCurve tractionCurve;
 
     public float rpm;
 }

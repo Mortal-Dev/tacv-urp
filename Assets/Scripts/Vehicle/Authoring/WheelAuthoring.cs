@@ -1,13 +1,15 @@
-﻿using Unity.Entities;
+﻿using System;
+using Unity.Entities;
+using Unity.XR.CoreUtils;
 using UnityEngine;
 
 public class WheelAuthoring : MonoBehaviour
 {
     public float radius;
 
-    public float traction;
+    public float wheelWeight;
 
-    public bool isTurnableWheel;
+    public WheelDirectionTractionValue[] wheelTractionCurve;
 
     class Baking : Baker<WheelAuthoring>
     {
@@ -15,9 +17,35 @@ public class WheelAuthoring : MonoBehaviour
         {
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);
 
-            WheelComponent wheelComponent = new() { radius = authoring.radius, traction = authoring.traction, isTurnableWheel = authoring.isTurnableWheel };
+            WheelComponent wheelComponent = new() { radius = authoring.radius, wheelWeight = authoring.wheelWeight, 
+                tractionCurve = ConvertWheelDirectionTractionValueToFixedCurve(authoring.wheelTractionCurve) };
 
             AddComponent(entity, wheelComponent);
         }
+
+        private LowFidelityFixedAnimationCurve ConvertWheelDirectionTractionValueToFixedCurve(WheelDirectionTractionValue[] values)
+        {
+            AnimationCurve animationCurve = new();
+
+            foreach (WheelDirectionTractionValue wheelDirectionTractionValue in values)
+            {
+                animationCurve.AddKey(wheelDirectionTractionValue.wheelSideToFowardRatio, wheelDirectionTractionValue.traction);
+            }
+
+            LowFidelityFixedAnimationCurve lowFidelityFixedAnimationCurve = new();
+
+            lowFidelityFixedAnimationCurve.SetCurve(animationCurve);
+
+            return lowFidelityFixedAnimationCurve;
+        }
+    }
+
+    [Serializable]
+    public class WheelDirectionTractionValue
+    {
+        [Range(0f, 1f)]
+        public float wheelSideToFowardRatio;
+
+        public float traction;
     }
 }

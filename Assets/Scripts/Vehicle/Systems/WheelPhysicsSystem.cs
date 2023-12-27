@@ -1,5 +1,4 @@
-﻿using Unity.Burst;
-using Unity.Collections;
+﻿using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Physics;
@@ -123,7 +122,7 @@ public partial struct WheelPhysicsSystem : ISystem
 
             float3 wheelVelocity = vehiclePhysicsVelocity.ValueRO.GetLocalLinearVelocity(vehicleEntity, wheelEntity, ref parentComponentLookup, ref localTransformComponentLookup);
 
-            UpdateVehicleWheelFriction(vehiclePhysicsVelocity, vehicleLocalTransform, vehiclePhysicsMass, wheelLocalTransform, wheelComponent, wheelVelocity);
+            UpdateVehicleWheelFriction(vehiclePhysicsVelocity, vehicleLocalTransform, vehiclePhysicsMass, wheelLocalTransform, wheelComponent);
 
             UpdateVehicleWheelRPM(wheelVelocity, wheelComponent);
         }
@@ -158,30 +157,31 @@ public partial struct WheelPhysicsSystem : ISystem
         }
 
         private void UpdateVehicleWheelFriction(RefRW<PhysicsVelocity> vehiclePhysicsVelocity, RefRO<LocalTransform> vehicleLocalTransform, RefRO<PhysicsMass> vehiclePhysicsMass, 
-            RefRO<LocalTransform> wheelLocalTransform, RefRW<WheelComponent> wheelComponent, float3 wheelVelocity)
+            RefRO<LocalTransform> wheelLocalTransform, RefRW<WheelComponent> wheelComponent)
         {
-            float sideToFowardVelocityRatio = math.abs(wheelVelocity.x) / (math.abs(wheelVelocity.x) + math.abs(wheelVelocity.z));
+            LocalTransform wheelGlobalLocalTransform = vehicleLocalTransform.ValueRO.TransformTransform(wheelLocalTransform.ValueRO);
 
-            if (sideToFowardVelocityRatio <= 0.04) return;
+            Vector3 wheelWorldVelocity = vehiclePhysicsVelocity.ValueRO.GetLinearVelocity(vehiclePhysicsMass.ValueRO, vehiclePhysicsMass.ValueRO.Transform.pos,
+                vehiclePhysicsMass.ValueRO.Transform.rot, wheelLocalTransform.ValueRO.Position);
 
-            float maxFrictionCurve = 1.0f;
-            float minFrictionCurve = 0.2f;
+            float3 sidwaysDirection = wheelGlobalLocalTransform.Right();
+            float3 fowardDirection = wheelGlobalLocalTransform.Forward();
+            float3 upDirection = wheelGlobalLocalTransform.Up();
 
-            float multiplier = math.lerp(maxFrictionCurve, minFrictionCurve, sideToFowardVelocityRatio);
+            float sidwaysVelocity = Vector3.Dot(sidwaysDirection, wheelWorldVelocity);
+            float fowardVelocity = Vector3.Dot(fowardDirection, wheelWorldVelocity);
+            float upVelocity = Vector3.Dot(upDirection, wheelWorldVelocity);
 
-            Debug.Log("wheel velocity: " + wheelVelocity.x);
+            float percentageSidways = math.abs(sidwaysVelocity) / (math.abs(sidwaysVelocity) + math.abs(fowardVelocity) + math.abs(upVelocity));
 
-            wheelVelocity.x = vehiclePhysicsMass.ValueRO.GetMass() * -wheelVelocity.x * multiplier;
-            wheelVelocity.z = 0;
-            wheelVelocity.y = 0;
+            float multiplier = wheelComponent.ValueRO.tractionCurve.Evaluate(percentageSidways);
 
-            Debug.Log("ratio: " + sideToFowardVelocityRatio);
-            Debug.Log("force: " + wheelVelocity.x * sideToFowardVelocityRatio);
+            float desiredVelocityChange = -sidwaysVelocity * multiplier;
 
-            vehiclePhysicsVelocity.ValueRW.Linear = Vector3.ClampMagnitude(vehiclePhysicsVelocity.ValueRO.Linear, 10f);
+            float desiredAccelleration = desiredVelocityChange / deltaTime;
 
-            vehiclePhysicsVelocity.ValueRW.ApplyImpulse(in vehiclePhysicsMass.ValueRO, vehiclePhysicsMass.ValueRO.Transform.pos, vehiclePhysicsMass.ValueRO.Transform.rot,
-                wheelVelocity * sideToFowardVelocityRatio, wheelLocalTransform.ValueRO.Position);
+            vehiclePhysicsVelocity.ValueRW.ApplyImpulse(vehiclePhysicsMass.ValueRO, vehiclePhysicsMass.ValueRO.Transform.pos, vehiclePhysicsMass.ValueRO.Transform.rot, 
+                sidwaysDirection * wheelComponent.ValueRO.wheelWeight * desiredAccelleration, wheelLocalTransform.ValueRO.Position);
         }
 
         private void UpdateVehicleWheelRPM(float3 wheelVelocity, RefRW<WheelComponent> wheelComponent)

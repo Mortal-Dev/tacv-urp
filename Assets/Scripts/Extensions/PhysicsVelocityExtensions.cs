@@ -14,15 +14,13 @@ public static class PhysicsVelocityExtensions
 
         float3 localVelocity = rootTransform.ValueRO.InverseTransformDirection(physicsVelocity.Linear);
 
-        FixedList512Bytes<Entity> entities = new()
-        {
-            child
-        };
+        FixedList512Bytes<Entity> entities = new() { child };
 
         Entity traversalEntity = child;
 
         int count = 0;
 
+        //get line of children to root
         while (count < maxChildDepthIterations && traversalEntity != root)
         {
             RefRO<Parent> parent = parentLookup.GetRefRO(traversalEntity);
@@ -34,8 +32,10 @@ public static class PhysicsVelocityExtensions
             count++;
         }
 
+        //remove root, which we already have
         entities.RemoveAt(entities.Length - 1);
 
+        //get our local velocity by transforming the child to local
         for (int i = entities.Length - 1; i >= 0; i--)
         {
             RefRO<LocalTransform> localTransform = localTransformLookup.GetRefRO(entities[i]);

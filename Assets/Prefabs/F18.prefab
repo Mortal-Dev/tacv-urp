@@ -2582,7 +2582,7 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3487316590472288609}
-  m_LocalRotation: {x: 0.000000030908623, y: 0.7071068, z: 0.7071067, w: 0.000000030908616}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 1.9809258, y: -1.6587815, z: -2.7178044}
   m_LocalScale: {x: 100, y: 100, z: 100}
   m_ConstrainProportionsScale: 0
@@ -2653,8 +2653,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   radius: 0.34
-  traction: 0.04
-  isTurnableWheel: 0
+  wheelWeight: 100
+  wheelTractionCurve:
+  - wheelSideToFowardRatio: 0
+    traction: 0.9
+  - wheelSideToFowardRatio: 1
+    traction: 0.2
 --- !u!114 &3603338094186997041
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2825,14 +2829,14 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3562709527005285735}
-  m_LocalRotation: {x: 0, y: 0.2588191, z: 0, w: 0.9659258}
+  m_LocalRotation: {x: 0, y: 0.08715578, z: 0, w: 0.9961947}
   m_LocalPosition: {x: 0, y: -1.5701022, z: 3.296675}
   m_LocalScale: {x: 100, y: 100.000015, z: 100}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 7335023277144038121}
   m_RootOrder: -1
-  m_LocalEulerAnglesHint: {x: 0, y: 30, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 10, z: 0}
 --- !u!33 &5032328190721927598
 MeshFilter:
   m_ObjectHideFlags: 0
@@ -2896,8 +2900,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   radius: 0.34
-  traction: 0.04
-  isTurnableWheel: 1
+  wheelWeight: 100
+  wheelTractionCurve:
+  - wheelSideToFowardRatio: 0
+    traction: 0.9
+  - wheelSideToFowardRatio: 1
+    traction: 0.2
 --- !u!114 &6564868032380728338
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4073,13 +4081,13 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
+  - {fileID: 7183444085164640751}
   - {fileID: 2168712324163018452}
   - {fileID: 5339662961641069333}
   - {fileID: 1688433908499400019}
   - {fileID: 5678690988823949096}
   - {fileID: 5350354016922756227}
   - {fileID: 6663784221109692909}
-  - {fileID: 7183444085164640751}
   - {fileID: 3661711848750772833}
   - {fileID: 8696446073677080852}
   m_Father: {fileID: 0}
@@ -6229,7 +6237,7 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7849476082084003152}
-  m_LocalRotation: {x: 0.000000030908623, y: 0.7071068, z: 0.7071067, w: 0.000000030908616}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: -1.980926, y: -1.6587812, z: -2.7178044}
   m_LocalScale: {x: 100, y: 100, z: 100}
   m_ConstrainProportionsScale: 0
@@ -6300,8 +6308,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   radius: 0.34
-  traction: 0.04
-  isTurnableWheel: 0
+  wheelWeight: 100
+  wheelTractionCurve:
+  - wheelSideToFowardRatio: 0
+    traction: 0.9
+  - wheelSideToFowardRatio: 1
+    traction: 0.2
 --- !u!114 &4344162486096503031
 MonoBehaviour:
   m_ObjectHideFlags: 0
